@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JSON Beautify - 格式化工具</title>
+    <link rel="stylesheet" href="panel.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <img src="../assets/icon-32.png" alt="" class="brand-icon">
+          <div>
+            <strong>JSON Beautify</strong>
+            <span>JSON 格式化 · 验证 · 树状视图</span>
+          </div>
+        </div>
+        <button class="icon-button" id="openOptions" type="button" aria-label="打开设置" title="打开设置">
+          <span aria-hidden="true">⚙</span>
+        </button>
+      </header>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-view="editor" role="tab" aria-selected="true">编辑器</button>
+        <button class="tab" data-view="tree" role="tab" aria-selected="false">树状视图</button>
+        <button class="tab" data-view="tools" role="tab" aria-selected="false">工具集</button>
+      </nav>
+
+      <section class="tab-panel active" data-view="editor">
+        <div class="view-card editor-view">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <label class="field-inline">
+                <span>缩进</span>
+                <select id="indentSize">
+                  <option value="2">2 空格</option>
+                  <option value="4">4 空格</option>
+                  <option value="tab">Tab</option>
+                </select>
+              </label>
+              <label class="checkline">
+                <input type="checkbox" id="sortKeysToggle">
+                <span>按键排序</span>
+              </label>
+            </div>
+            <div class="toolbar-right">
+              <button class="secondary" id="sampleData" type="button">示例</button>
+              <button class="secondary" id="importFromPage" type="button">读取页面</button>
+              <button class="secondary" id="clearInput" type="button">清空</button>
+            </div>
+          </div>
+
+          <div class="textarea-wrap">
+            <label class="editor-label">
+              <span>输入 JSON 文本</span>
+              <textarea id="inputText" placeholder="在此粘贴或输入 JSON，支持带注释、尾逗号的松弛格式。&#10;&#10;例如：&#10;{&#10;  &quot;name&quot;: &quot;Alice&quot;,&#10;  &quot;age&quot;: 30&#10;}"></textarea>
+            </label>
+          </div>
+
+          <div class="actions-primary">
+            <button class="primary" id="formatNow" type="button">✨ 美化格式化</button>
+            <button class="secondary" id="validateNow" type="button">✓ 验证语法</button>
+            <button class="secondary" id="minifyNow" type="button">→ 压缩单行</button>
+          </div>
+
+          <div class="output-wrap" id="outputWrap" hidden>
+            <div class="output-header">
+              <div class="stats" id="statsBlock" hidden>
+                <span class="stat"><strong id="statLines">0</strong><em>行</em></span>
+                <span class="stat"><strong id="statBytes">0</strong><em>字节</em></span>
+                <span class="stat"><strong id="statKeys">0</strong><em>键</em></span>
+                <span class="stat"><strong id="statDepth">0</strong><em>层</em></span>
+              </div>
+              <div class="output-actions">
+                <button class="secondary sm" id="copyOutput" type="button">复制</button>
+                <button class="secondary sm" id="downloadOutput" type="button">下载 .json</button>
+                <button class="secondary sm" id="swapToInput" type="button">送到输入</button>
+              </div>
+            </div>
+            <div class="output-area">
+              <pre id="outputText" class="code-output" tabindex="0"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-view="tree" hidden>
+        <div class="view-card tree-view">
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <label class="field-inline">
+                <span>展开层级</span>
+                <select id="expandLevel">
+                  <option value="0">全部折叠</option>
+                  <option value="1" selected>第 1 层</option>
+                  <option value="2">第 2 层</option>
+                  <option value="3">第 3 层</option>
+                  <option value="5">第 5 层</option>
+                  <option value="20">全部展开</option>
+                </select>
+              </label>
+            </div>
+            <div class="toolbar-right">
+              <button class="secondary" id="refreshTree" type="button">刷新树</button>
+              <button class="secondary" id="expandAllTree" type="button">全部展开</button>
+              <button class="secondary" id="collapseAllTree" type="button">全部折叠</button>
+            </div>
+          </div>
+          <div class="tree-container" id="treeContainer">
+            <p class="tree-placeholder">切换到编辑器输入 JSON，然后在此查看树状结构。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="tab-panel" data-view="tools" hidden>
+        <div class="view-card tools-view">
+          <div class="tools-grid">
+            <div class="tool-block">
+              <h3>转义 / 反转义</h3>
+              <label class="editor-label">
+                <span>输入</span>
+                <textarea id="escapeInput" placeholder="输入任意文本，点击下方按钮进行 JSON 字符串转义或反转义。"></textarea>
+              </label>
+              <div class="actions-row">
+                <button class="secondary" id="escapeNow" type="button">转义（加 \）</button>
+                <button class="secondary" id="unescapeNow" type="button">反转义</button>
+                <button class="secondary sm" id="copyEscapeOutput" type="button">复制结果</button>
+              </div>
+              <pre id="escapeOutput" class="code-output compact"></pre>
+            </div>
+
+            <div class="tool-block">
+              <h3>按 Key 排序</h3>
+              <label class="editor-label">
+                <span>输入 JSON</span>
+                <textarea id="sortInput" placeholder="输入 JSON 对象后点击“按键名排序”。"></textarea>
+              </label>
+              <div class="actions-row">
+                <button class="secondary" id="sortNow" type="button">按键名排序</button>
+                <button class="secondary sm" id="copySortOutput" type="button">复制结果</button>
+              </div>
+              <pre id="sortOutput" class="code-output compact"></pre>
+            </div>
+
+            <div class="tool-block full">
+              <h3>对比两个 JSON 结构</h3>
+              <div class="compare-grid">
+                <label class="editor-label">
+                  <span>JSON A</span>
+                  <textarea id="compareA" placeholder="输入第一个 JSON"></textarea>
+                </label>
+                <label class="editor-label">
+                  <span>JSON B</span>
+                  <textarea id="compareB" placeholder="输入第二个 JSON"></textarea>
+                </label>
+              </div>
+              <div class="actions-row">
+                <button class="secondary" id="compareNow" type="button">比较结构差异</button>
+              </div>
+              <pre id="compareOutput" class="code-output compact"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel-card status-card">
+        <div class="status-line">
+          <span id="statusDot" class="dot"></span>
+          <strong id="statusTitle">准备就绪</strong>
+        </div>
+        <p id="statusText">粘贴 JSON 到上方输入框，点击“美化格式化”即可。设置页可配置默认缩进与自动行为。</p>
+      </section>
+
+      <section class="panel-card compact">
+        <a class="text-link" id="openSidePanel" href="#" role="button">在侧栏中打开</a>
+        <span>所有处理均在本地完成，数据不会上传</span>
+      </section>
+    </main>
+
+    <script src="panel.js"></script>
+  </body>
+</html>

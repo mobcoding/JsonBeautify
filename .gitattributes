@@ -1,0 +1,17 @@
+* text=auto eol=lf
+
+*.md        text diff=markdown
+*.html      text diff=html
+*.css       text diff=css
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.json      text eol=lf
+*.ps1       text eol=crlf
+
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.svg       text
+
+manifest.json  text eol=lf

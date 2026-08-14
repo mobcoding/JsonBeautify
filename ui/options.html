@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>JSON Beautify 设置</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="page">
+      <section class="header">
+        <img src="../assets/icon-48.png" alt="" class="logo">
+        <div>
+          <p class="eyebrow">JSON Beautify</p>
+          <h1>JSON 格式化工具设置</h1>
+          <p>调整默认缩进、键排序、语法高亮等偏好。设置仅保存在本机浏览器，不会上传任何数据。</p>
+        </div>
+      </section>
+
+      <form class="settings" id="settingsForm">
+        <div class="grid">
+          <label>
+            <span>默认缩进方式</span>
+            <select id="indentMode" required>
+              <option value="space-2">2 个空格</option>
+              <option value="space-4">4 个空格</option>
+              <option value="tab">Tab 字符</option>
+            </select>
+          </label>
+
+          <label>
+            <span>默认展开层级（树状视图）</span>
+            <select id="expandLevel" required>
+              <option value="0">全部折叠</option>
+              <option value="1">第 1 层</option>
+              <option value="2">第 2 层</option>
+              <option value="3">第 3 层</option>
+              <option value="5">前 5 层</option>
+              <option value="20">全部展开</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="toggles">
+          <label class="checkline">
+            <input type="checkbox" id="sortKeys">
+            <div>
+              <strong>默认按键名排序</strong>
+              <p>开启后，美化格式化时将对象的 key 按字典序递归排序。</p>
+            </div>
+          </label>
+
+          <label class="checkline">
+            <input type="checkbox" id="syntaxHighlight">
+            <div>
+              <strong>输出语法高亮</strong>
+              <p>在编辑器输出区对 JSON 进行 key / 字符串 / 数字 / 布尔 的着色显示。</p>
+            </div>
+          </label>
+
+          <label class="checkline">
+            <input type="checkbox" id="autoFormatOnView">
+            <div>
+              <strong>自动检测页面 JSON 响应</strong>
+              <p>打开以 <code>.json</code> 结尾或 <code>Content-Type</code> 为 JSON 的页面时，自动将原始内容填充到侧栏输入框并尝试美化。</p>
+            </div>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="primary" type="submit">保存设置</button>
+          <button class="secondary" id="resetDefaults" type="button">恢复默认</button>
+          <button class="danger" id="clearData" type="button">清除本机数据</button>
+        </div>
+      </form>
+
+      <section class="notice" id="notice" role="status" aria-live="polite">
+        正在读取设置...
+      </section>
+
+      <section class="privacy">
+        <h2>隐私与上架前检查</h2>
+        <p>本扩展所有 JSON 解析、格式化、比较、验证等处理均在本机浏览器内完成，不会将任何数据上传到第三方服务器。扩展向 <code>host_permissions</code> 请求 <code>&lt;all_urls&gt;</code> 是为了让右键菜单和“读取当前页面 JSON”功能可以对任意站点生效；除此之外不会主动发起网络请求。</p>
+        <p>上架到 Edge 附加商店前，请确认图标、截图、描述文案与扩展实际功能一致，并在发布页面填写本仓库提供的隐私说明。</p>
+      </section>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

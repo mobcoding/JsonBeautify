@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "JSON Beautify - JSON 格式化与验证工具",
+  "short_name": "JSON Beautify",
+  "description": "简洁高效的 JSON 格式化、美化、压缩、验证与树状视图查看器。自动检测页面 JSON 响应并一键美化。",
+  "version": "1.0.0",
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  },
+  "action": {
+    "default_title": "JSON Beautify - 格式化工具",
+    "default_popup": "ui/panel.html",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png",
+      "48": "assets/icon-48.png",
+      "128": "assets/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "ui/panel.html"
+  },
+  "options_page": "ui/options.html",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/content.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}
