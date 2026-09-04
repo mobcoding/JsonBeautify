@@ -2,21 +2,27 @@ const DEFAULT_SETTINGS = Object.freeze({
   indentSize: 2,
   useTabIndent: false,
   sortKeys: false,
-  quoteKeys: true,
   autoFormatOnView: true,
-  syntaxHighlight: true,
-  expandLevel: 0,
-  maxDepth: 100
+  syntaxHighlight: true
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  setupSidePanelBehavior();
   setupContextMenus();
   initializeSettings();
 });
 
-chrome.runtime.onStartup.addListener(() => {
-  setupSidePanelBehavior();
+chrome.action.onClicked.addListener(async () => {
+  try {
+    const win = await openPanelWindow();
+    console.log("[JSON Beautify] 已打开全屏窗口 windowId=" + (win?.windowId ?? "?"));
+  } catch (error) {
+    console.warn("[JSON Beautify] openPanelWindow 失败，回退到新标签页:", error?.message ?? error);
+    try {
+      await openPanelInNewTab();
+    } catch (e) {
+      console.error("[JSON Beautify] 连新标签页都打不开:", e);
+    }
+  }
 });
 
 chrome.contextMenus.onClicked.addListener(handleContextMenuClick);
@@ -55,25 +61,15 @@ async function handleMessage(message, sender) {
     case "SORT_KEYS":
       return sortJsonKeys(message.payload || {});
 
-    case "JSON_TO_TREE":
-      return jsonToTree(message.payload || {});
-
     case "GET_ACTIVE_TAB_JSON":
       return getActiveTabJson();
+
+    case "PING_FOR_VIEW":
+      return { mode: "window", ok: true };
 
     default:
       throw new Error("未知请求。");
   }
-}
-
-function setupSidePanelBehavior() {
-  if (!chrome.sidePanel?.setPanelBehavior) {
-    return;
-  }
-
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch(() => {});
 }
 
 function setupContextMenus() {
@@ -145,21 +141,12 @@ function normalizeSettings(input, current) {
     normalized.sortKeys = Boolean(input.sortKeys);
   }
 
-  if (Object.prototype.hasOwnProperty.call(input, "quoteKeys")) {
-    normalized.quoteKeys = Boolean(input.quoteKeys);
-  }
-
   if (Object.prototype.hasOwnProperty.call(input, "autoFormatOnView")) {
     normalized.autoFormatOnView = Boolean(input.autoFormatOnView);
   }
 
   if (Object.prototype.hasOwnProperty.call(input, "syntaxHighlight")) {
     normalized.syntaxHighlight = Boolean(input.syntaxHighlight);
-  }
-
-  if (Object.prototype.hasOwnProperty.call(input, "expandLevel")) {
-    const n = parseInt(input.expandLevel, 10);
-    normalized.expandLevel = Number.isFinite(n) ? Math.min(20, Math.max(0, n)) : current.expandLevel;
   }
 
   return normalized;
@@ -215,7 +202,12 @@ function minifyJson(payload) {
     return {
       minified: "",
       isValid: false,
-      error: { message: error.message }
+      error: {
+        message: error.message,
+        position: error.position ?? null,
+        line: error.line ?? null,
+        column: error.column ?? null
+      }
     };
   }
 
@@ -238,6 +230,7 @@ function validateJson(payload) {
     return {
       isValid: true,
       error: null,
+      parsed,
       stats: computeStats(parsed, text)
     };
   } catch (error) {
@@ -263,7 +256,10 @@ function escapeJson(payload) {
 function unescapeJson(payload) {
   const text = String(payload.text || "");
   try {
-    const unescaped = JSON.parse(`"${text.replace(/"/g, '\\"')}"`);
+    const source = text.trim();
+    const unescaped = source.startsWith('"') && source.endsWith('"')
+      ? JSON.parse(source)
+      : JSON.parse(`"${source}"`);
     return { unescaped };
   } catch (error) {
     throw new Error("转义字符串解析失败：" + error.message);
@@ -289,26 +285,6 @@ function sortJsonKeys(payload) {
 
   return {
     sorted: JSON.stringify(sorted, null, indent),
-    isValid: true
-  };
-}
-
-function jsonToTree(payload) {
-  const text = String(payload.text || "");
-  if (!text.trim()) {
-    return { tree: null, isValid: true };
-  }
-
-  let parsed;
-  try {
-    parsed = parseJsonRelaxed(text);
-  } catch (error) {
-    return { tree: null, isValid: false, error: { message: error.message } };
-  }
-
-  const settings = normalizeInlineSettings(payload.settings);
-  return {
-    tree: buildTree(parsed, "root", 0, settings.expandLevel),
     isValid: true
   };
 }
@@ -345,9 +321,7 @@ function normalizeInlineSettings(partial) {
   return {
     indentSize: parseInt(partial?.indentSize, 10) || DEFAULT_SETTINGS.indentSize,
     useTabIndent: Boolean(partial?.useTabIndent ?? DEFAULT_SETTINGS.useTabIndent),
-    sortKeys: Boolean(partial?.sortKeys ?? DEFAULT_SETTINGS.sortKeys),
-    quoteKeys: Boolean(partial?.quoteKeys ?? DEFAULT_SETTINGS.quoteKeys),
-    expandLevel: parseInt(partial?.expandLevel, 10) || DEFAULT_SETTINGS.expandLevel
+    sortKeys: Boolean(partial?.sortKeys ?? DEFAULT_SETTINGS.sortKeys)
   };
 }
 
@@ -463,41 +437,6 @@ function deepSortKeys(value) {
   return value;
 }
 
-function buildTree(value, key, depth, expandLevel) {
-  const node = { key, depth, collapsed: depth >= expandLevel };
-
-  if (value === null) {
-    node.type = "null";
-    node.value = null;
-  } else if (Array.isArray(value)) {
-    node.type = "array";
-    node.length = value.length;
-    node.children = value.map((item, index) =>
-      buildTree(item, String(index), depth + 1, expandLevel)
-    );
-  } else if (typeof value === "object") {
-    node.type = "object";
-    node.keys = Object.keys(value);
-    node.children = Object.keys(value).map((k) =>
-      buildTree(value[k], k, depth + 1, expandLevel)
-    );
-  } else if (typeof value === "string") {
-    node.type = "string";
-    node.value = value;
-  } else if (typeof value === "number") {
-    node.type = "number";
-    node.value = value;
-  } else if (typeof value === "boolean") {
-    node.type = "boolean";
-    node.value = value;
-  } else {
-    node.type = "unknown";
-    node.value = String(value);
-  }
-
-  return node;
-}
-
 function computeStats(parsed, formattedText) {
   let keys = 0;
   let values = 0;
@@ -606,6 +545,80 @@ function storageGet(defaults) {
 function storageSet(items) {
   return new Promise((resolve) => {
     chrome.storage.local.set(items, () => resolve());
+  });
+}
+
+async function openPanelWindow() {
+  const url = chrome.runtime.getURL("ui/panel.html");
+  let createErr = null;
+
+  const variants = [
+    { name: "full",     usePopup: true,  setMaximized: true,  setSize: true },
+    { name: "simple",   usePopup: true,  setMaximized: true,  setSize: false },
+    { name: "bare",     usePopup: true,  setMaximized: false, setSize: true },
+    { name: "minimal",  usePopup: true,  setMaximized: false, setSize: false }
+  ];
+
+  for (const variant of variants) {
+    const opts = {};
+    opts.url = url;
+    opts.focused = true;
+    if (variant.usePopup) opts.type = "popup";
+
+    if (variant.setSize) {
+      let left = 120, top = 80, width = 1280, height = 820;
+      try {
+        const ref = await getCurrentWindowBoundsSafe();
+        if (ref) {
+          const pad = 80;
+          width = Math.min(1360, Math.max(1040, ref.width - pad * 2));
+          height = Math.min(900, Math.max(700, ref.height - pad * 2));
+          left = Math.max(ref.left + pad, ref.left + Math.floor((ref.width - width) / 2));
+          top = Math.max(ref.top + pad, ref.top + Math.floor((ref.height - height) / 2));
+        }
+      } catch {}
+      opts.left = left; opts.top = top; opts.width = width; opts.height = height;
+    }
+
+    try {
+      const win = await chrome.windows.create(opts);
+      if (win && variant.setMaximized) {
+        try { await chrome.windows.update(win.id, { state: "maximized" }); } catch {}
+      }
+      if (win) {
+        console.log("[JSON Beautify] openPanelWindow 成功 variant=" + variant.name);
+        return { windowId: win.id, variant: variant.name };
+      }
+    } catch (err) {
+      createErr = err;
+      console.warn("[JSON Beautify] openPanelWindow variant=" + variant.name + " 失败:", err?.message ?? err);
+    }
+  }
+
+  throw new Error("所有 chrome.windows.create 方案均失败: " + (createErr?.message ?? String(createErr)));
+}
+
+async function openPanelInNewTab() {
+  const url = chrome.runtime.getURL("ui/panel.html");
+  const tab = await chrome.tabs.create({ url, active: true });
+  return { tabId: tab?.id };
+}
+
+async function getCurrentWindowBoundsSafe() {
+  return new Promise((resolve) => {
+    try {
+      chrome.windows.getCurrent({ windowTypes: ["normal", "popup"] }, (win) => {
+        if (chrome.runtime.lastError || !win) { resolve(null); return; }
+        resolve({
+          left: Number.isFinite(win.left) ? win.left : 0,
+          top: Number.isFinite(win.top) ? win.top : 0,
+          width: Number.isFinite(win.width) && win.width > 400 ? win.width : 1440,
+          height: Number.isFinite(win.height) && win.height > 300 ? win.height : 900
+        });
+      });
+    } catch {
+      resolve(null);
+    }
   });
 }
 

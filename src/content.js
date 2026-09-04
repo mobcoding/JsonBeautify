@@ -124,7 +124,7 @@
     host.innerHTML = `
       <div class="jb-banner">
         <div class="jb-banner-title">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9zm-3 13h-2v-2h2zm0-4h-2V7h2z"/></svg>
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="currentColor"><text x="1" y="18" font-size="16" font-family="monospace" font-weight="700">{}</text></svg>
           <strong>JSON Beautify</strong>
           <span class="jb-banner-meta">已自动格式化页面 JSON</span>
         </div>
@@ -202,7 +202,7 @@
     floatingEl.title = "JSON Beautify：美化当前页面 JSON";
     floatingEl.textContent = "{ }";
 
-    const css = `#${FLOAT_ID}{position:fixed;z-index:2147483646;right:18px;bottom:18px;width:52px;height:52px;border:0;border-radius:14px;cursor:pointer;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-family:"Cascadia Code",Consolas,monospace;font-size:18px;font-weight:700;box-shadow:0 10px 28px rgba(37,99,235,.35);transition:transform .12s ease,box-shadow .12s ease}#${FLOAT_ID}:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 14px 32px rgba(37,99,235,.42)}`;
+    const css = `#${FLOAT_ID}{position:fixed;z-index:2147483646;right:18px;bottom:18px;width:52px;height:52px;border:1px solid #a9d4ca;border-radius:12px;cursor:pointer;background:#087b68;color:#fff;font-family:"Cascadia Code",Consolas,monospace;font-size:18px;font-weight:700;box-shadow:0 8px 20px rgba(8,123,104,.25);transition:transform .12s ease,box-shadow .12s ease}#${FLOAT_ID}:hover{transform:translateY(-2px);background:#056554;box-shadow:0 12px 26px rgba(8,123,104,.32)}`;
     const style = document.createElement("style");
     style.textContent = css;
     (document.head || document.documentElement).appendChild(style);
@@ -345,31 +345,34 @@
   function buildStyleTag() {
     const s = document.createElement("style");
     s.textContent = `
-      html,body,#${HOST_ID}{margin:0;padding:0;background:#0b1220;color:#e2e8f0;font-family:"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei UI",sans-serif}
-      #${HOST_ID}{min-height:100vh;padding:20px 16px 40px;box-sizing:border-box;background:radial-gradient(900px 500px at 0% 0%,rgba(37,99,235,.12),transparent 60%),radial-gradient(900px 500px at 100% 0%,rgba(124,58,237,.12),transparent 60%),#0b1220}
+      html,body,#${HOST_ID}{margin:0;padding:0;background:#f1f5f4;color:#253033;font-family:"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei UI",sans-serif}
+      body{min-width:320px}
+      #${HOST_ID}{min-height:100vh;padding:24px 18px 42px;box-sizing:border-box;background:linear-gradient(180deg,#f7faf9 0%,#eef5f3 100%)}
       #${HOST_ID} *{box-sizing:border-box}
-      .jb-banner{max-width:1060px;margin:0 auto 14px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-      .jb-banner-title{display:flex;align-items:center;gap:10px;min-width:0;color:#cbd5e1}
-      .jb-banner-title strong{color:#fff;font-weight:800}
-      .jb-banner-meta{color:#94a3b8;font-size:12px;padding-left:8px;border-left:1px solid rgba(255,255,255,.12)}
+      .jb-banner{max-width:1180px;margin:0 auto 14px;padding:12px 14px;border-radius:10px;background:#fff;border:1px solid #d8e1de;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(30,53,49,.04)}
+      .jb-banner-title{display:flex;align-items:center;gap:10px;min-width:0;color:#526164}
+      .jb-banner-title svg{color:#087b68;flex:0 0 auto}
+      .jb-banner-title strong{color:#253033;font-weight:800;font-size:16px}
+      .jb-banner-meta{color:#718083;font-size:12px;padding-left:10px;border-left:1px solid #d8e1de}
       .jb-banner-actions{display:flex;gap:6px;flex-wrap:wrap}
-      .jb-btn{cursor:pointer;border:0;border-radius:8px;padding:6px 12px;font-weight:600;background:rgba(255,255,255,.08);color:#e2e8f0;transition:background .12s ease,transform .08s ease}
-      .jb-btn:hover{background:rgba(255,255,255,.14)}
+      .jb-btn{cursor:pointer;border:1px solid #d8e1de;border-radius:7px;padding:6px 12px;font-weight:600;background:#f8faf9;color:#496066;transition:background .12s ease,transform .08s ease,border-color .12s ease}
+      .jb-btn:hover{background:#eaf3f1;border-color:#9bbdb6;color:#056554}
       .jb-btn:active{transform:translateY(1px)}
-      .jb-btn.sm{padding:4px 10px;font-size:12px;border-radius:7px}
-      .jb-btn.primary{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;box-shadow:0 6px 16px rgba(37,99,235,.3)}
-      .jb-card{max-width:1060px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,.08);background:#0f172a;box-shadow:0 18px 44px rgba(0,0,0,.35)}
-      .jb-stats{display:flex;gap:14px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06);color:#94a3b8;font-size:12px;flex-wrap:wrap}
-      .jb-stat strong{margin-right:4px;color:#e0e7ff;font-weight:800}
+      .jb-btn.sm{padding:5px 10px;font-size:12px;border-radius:6px}
+      .jb-btn.primary{background:#087b68;border-color:#087b68;color:#fff;box-shadow:0 5px 12px rgba(8,123,104,.2)}
+      .jb-btn.primary:hover{background:#056554;border-color:#056554;color:#fff}
+      .jb-card{max-width:1180px;margin:0 auto;border-radius:10px;overflow:hidden;border:1px solid #bdcdca;background:#fff;box-shadow:0 2px 7px rgba(30,53,49,.06)}
+      .jb-stats{display:flex;gap:18px;padding:10px 14px;border-bottom:1px solid #d8e1de;color:#718083;font-size:12px;flex-wrap:wrap;background:#f8faf9}
+      .jb-stat strong{margin-right:4px;color:#087b68;font-weight:800}
       .jb-stat em{font-style:normal;opacity:.8}
       .jb-views{position:relative}
-      .jb-view{margin:0;padding:18px 20px;white-space:pre;overflow:auto;min-height:calc(100vh - 220px);font-family:"Cascadia Code","JetBrains Mono","Fira Code",Consolas,Menlo,monospace;font-size:13px;line-height:1.65;color:#e2e8f0;display:none}
+      .jb-view{margin:0;padding:18px 20px;white-space:pre;overflow:auto;min-height:calc(100vh - 220px);font-family:"Cascadia Code","JetBrains Mono","Fira Code",Consolas,Menlo,monospace;font-size:13px;line-height:1.65;color:#263538;display:none;background:#fbfcfc}
       .jb-view.active{display:block}
-      .jb-view-pretty .j-key{color:#f472b6}
-      .jb-view-pretty .j-str{color:#fde68a}
-      .jb-view-pretty .j-num{color:#93c5fd}
-      .jb-view-pretty .j-bool{color:#86efac;font-weight:700}
-      .jb-view-pretty .j-null{color:#fca5a5;font-style:italic}
+      .jb-view-pretty .j-key{color:#a33c74}
+      .jb-view-pretty .j-str{color:#9a6210}
+      .jb-view-pretty .j-num{color:#176eae}
+      .jb-view-pretty .j-bool{color:#1d7b5c;font-weight:700}
+      .jb-view-pretty .j-null{color:#ae4a4a;font-style:italic}
     `;
     return s;
   }

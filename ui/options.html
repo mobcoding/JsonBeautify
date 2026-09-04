@@ -12,60 +12,54 @@
         <img src="../assets/icon-48.png" alt="" class="logo">
         <div>
           <p class="eyebrow">JSON Beautify</p>
-          <h1>JSON 格式化工具设置</h1>
-          <p>调整默认缩进、键排序、语法高亮等偏好。设置仅保存在本机浏览器，不会上传任何数据。</p>
+          <h1>偏好设置</h1>
+          <p>这些选项只保存在本机浏览器，将在下次打开编辑器或访问 JSON 页面时生效。</p>
         </div>
       </section>
 
       <form class="settings" id="settingsForm">
-        <div class="grid">
-          <label>
-            <span>默认缩进方式</span>
-            <select id="indentMode" required>
-              <option value="space-2">2 个空格</option>
-              <option value="space-4">4 个空格</option>
-              <option value="tab">Tab 字符</option>
-            </select>
-          </label>
+        <section class="settings-section">
+          <h2>编辑器</h2>
+          <div class="grid">
+            <label>
+              <span>默认缩进方式</span>
+              <select id="indentMode" required>
+                <option value="space-2">2 个空格</option>
+                <option value="space-4">4 个空格</option>
+                <option value="tab">Tab 字符</option>
+              </select>
+            </label>
+          </div>
+        </section>
 
-          <label>
-            <span>默认展开层级（树状视图）</span>
-            <select id="expandLevel" required>
-              <option value="0">全部折叠</option>
-              <option value="1">第 1 层</option>
-              <option value="2">第 2 层</option>
-              <option value="3">第 3 层</option>
-              <option value="5">前 5 层</option>
-              <option value="20">全部展开</option>
-            </select>
-          </label>
-        </div>
+        <section class="settings-section">
+          <h2>默认行为</h2>
+          <div class="toggles">
+            <label class="checkline">
+              <input type="checkbox" id="sortKeys">
+              <div>
+                <strong>默认按键名排序</strong>
+                <p>美化格式化时将对象的 key 按字典序递归排序。</p>
+              </div>
+            </label>
 
-        <div class="toggles">
-          <label class="checkline">
-            <input type="checkbox" id="sortKeys">
-            <div>
-              <strong>默认按键名排序</strong>
-              <p>开启后，美化格式化时将对象的 key 按字典序递归排序。</p>
-            </div>
-          </label>
+            <label class="checkline">
+              <input type="checkbox" id="syntaxHighlight">
+              <div>
+                <strong>输出语法高亮</strong>
+                <p>在编辑器输出区高亮 key、字符串、数字和布尔值。</p>
+              </div>
+            </label>
 
-          <label class="checkline">
-            <input type="checkbox" id="syntaxHighlight">
-            <div>
-              <strong>输出语法高亮</strong>
-              <p>在编辑器输出区对 JSON 进行 key / 字符串 / 数字 / 布尔 的着色显示。</p>
-            </div>
-          </label>
-
-          <label class="checkline">
-            <input type="checkbox" id="autoFormatOnView">
-            <div>
-              <strong>自动检测页面 JSON 响应</strong>
-              <p>打开以 <code>.json</code> 结尾或 <code>Content-Type</code> 为 JSON 的页面时，自动将原始内容填充到侧栏输入框并尝试美化。</p>
-            </div>
-          </label>
-        </div>
+            <label class="checkline">
+              <input type="checkbox" id="autoFormatOnView">
+              <div>
+                <strong>自动格式化在线 JSON</strong>
+                <p>打开 <code>.json</code> 或 JSON 响应页面时，在当前页展示美化结果。</p>
+              </div>
+            </label>
+          </div>
+        </section>
 
         <div class="actions">
           <button class="primary" type="submit">保存设置</button>

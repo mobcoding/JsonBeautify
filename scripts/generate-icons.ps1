@@ -26,84 +26,64 @@ function Fill-Round($G, $Brush, [float]$X, [float]$Y, [float]$W, [float]$H, [flo
 function Draw-Logo($G, [float]$X, [float]$Y, [float]$S) {
   $Rect = New-Object System.Drawing.Rectangle ([int]$X), ([int]$Y), ([int]$S), ([int]$S)
   $Bg = New-Object System.Drawing.Drawing2D.LinearGradientBrush $Rect, `
-    ([System.Drawing.Color]::FromArgb(219, 234, 254)), `
-    ([System.Drawing.Color]::FromArgb(243, 232, 255)), 45
+    ([System.Drawing.Color]::FromArgb(247, 253, 251)), `
+    ([System.Drawing.Color]::FromArgb(205, 239, 231)), 55
 
-  $Indigo = [System.Drawing.Color]::FromArgb(37, 99, 235)
-  $Violet = [System.Drawing.Color]::FromArgb(124, 58, 237)
-  $IndigoDark = [System.Drawing.Color]::FromArgb(29, 78, 216)
+  $Teal = [System.Drawing.Color]::FromArgb(8, 123, 104)
+  $Accent = [System.Drawing.Color]::FromArgb(20, 145, 121)
+  $TealBrush = New-Object System.Drawing.SolidBrush $Teal
+  $AccentBrush = New-Object System.Drawing.SolidBrush $Accent
+  $InnerLinePen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(115, 8, 123, 104)), ([Math]::Max(0.8, $S * 0.008))
 
-  $BlueBrush = New-Object System.Drawing.SolidBrush $Indigo
-  $VioletBrush = New-Object System.Drawing.SolidBrush $Violet
-  $WhiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 255, 255))
-  $DarkBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 15, 23, 42))
-  $Shadow = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(22, 15, 23, 42))
-  $OutlinePen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(230, 255, 255, 255)), ([Math]::Max(1.0, $S * 0.02))
+  $Corner = [Math]::Max(4, $S * 0.22)
+  Fill-Round $G $Bg $X $Y $S $S $Corner
 
-  Fill-Round $G $Bg $X $Y $S $S ([Math]::Max(4, $S * 0.22))
-
-  $CardX = $X + $S * 0.13
-  $CardY = $Y + $S * 0.17
-  $CardW = $S * 0.74
-  $CardH = $S * 0.66
-  $CR = [Math]::Max(2, $S * 0.13)
-
-  Fill-Round $G $Shadow ($CardX + $S * 0.012) ($CardY + $S * 0.018) $CardW $CardH $CR
-  Fill-Round $G $WhiteBrush $CardX $CardY $CardW $CardH $CR
-
-  $CardRect = New-Object System.Drawing.RectangleF ($CardX), ($CardY), ($CardW), ($CardH)
-  $InnerPen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(226, 232, 240)), ([Math]::Max(1, $S * 0.012))
-  $CardPath = New-Object System.Drawing.Drawing2D.GraphicsPath
-  Add-RoundPath $CardPath $CardX $CardY $CardW $CardH $CR
-  $G.DrawPath($InnerPen, $CardPath)
-  $CardPath.Dispose()
+  $MonoBold = New-Object System.Drawing.Font 'Cascadia Code', ([float]($S * 0.44)), ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+  if ($MonoBold.Name -ne 'Cascadia Code') {
+    $MonoBold.Dispose()
+    $MonoBold = New-Object System.Drawing.Font 'Consolas', ([float]($S * 0.44)), ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+  }
 
   $Format = New-Object System.Drawing.StringFormat
   $Format.Alignment = [System.Drawing.StringAlignment]::Near
-  $Format.LineAlignment = [System.Drawing.StringAlignment]::Near
-  $Font = New-Object System.Drawing.Font 'Cascadia Code', ([float]($S * 0.28)), ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-  if ($Font.Name -ne 'Cascadia Code') {
-    $Font.Dispose()
-    $Font = New-Object System.Drawing.Font 'Consolas', ([float]($S * 0.28)), ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-  }
+  $Format.LineAlignment = [System.Drawing.StringAlignment]::Center
 
-  $TextRect = New-Object System.Drawing.RectangleF ($CardX + $S * 0.09), ($CardY + $S * 0.13), ($CardW - $S * 0.18), ($CardH - $S * 0.24)
-  $G.DrawString('{ }', $Font, $VioletBrush, $TextRect, $Format)
+  $BraceFormat = New-Object System.Drawing.StringFormat
+  $BraceFormat.Alignment = [System.Drawing.StringAlignment]::Center
+  $BraceFormat.LineAlignment = [System.Drawing.StringAlignment]::Center
 
-  $LineY = $CardY + $CardH * 0.62
-  $LineX1 = $CardX + $S * 0.10
-  $LineX2 = $CardX + $CardW - $S * 0.28
-  $LinePen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(203, 213, 225)), ([Math]::Max(1.2, $S * 0.012))
-  $G.DrawLine($LinePen, (New-Object System.Drawing.PointF ($LineX1), ($LineY)), (New-Object System.Drawing.PointF ($LineX2), ($LineY)))
+  $WholeRect = New-Object System.Drawing.RectangleF ($X + $S * 0.06), ($Y + $S * 0.10), ($S * 0.88), ($S * 0.80)
 
-  $LineY2 = $CardY + $CardH * 0.78
-  $LineX2b = $CardX + $CardW - $S * 0.40
-  $G.DrawLine($LinePen, (New-Object System.Drawing.PointF ($LineX1), ($LineY2)), (New-Object System.Drawing.PointF ($LineX2b), ($LineY2)))
+  $LeftBrace = New-Object System.Drawing.RectangleF ($WholeRect.X + $S * 0.01), ($WholeRect.Y), ($WholeRect.Width * 0.30), ($WholeRect.Height)
+  $RightBrace = New-Object System.Drawing.RectangleF ($WholeRect.X + $WholeRect.Width * 0.69), ($WholeRect.Y), ($WholeRect.Width * 0.30), ($WholeRect.Height)
+  $G.DrawString('{', $MonoBold, $TealBrush, $LeftBrace, $BraceFormat)
+  $G.DrawString('}', $MonoBold, $TealBrush, $RightBrace, $BraceFormat)
 
-  $BadgeX = $X + $S * 0.59
-  $BadgeY = $Y + $S * 0.08
-  $BadgeW = $S * 0.30
-  $BadgeH = $S * 0.20
-  Fill-Round $G $Shadow ($BadgeX + 1.5) ($BadgeY + 1.8) $BadgeW $BadgeH ([Math]::Max(2, $S * 0.18))
-  Fill-Round $G $BlueBrush $BadgeX $BadgeY $BadgeW $BadgeH ([Math]::Max(2, $S * 0.18))
+  $IndentY1 = $WholeRect.Y + $WholeRect.Height * 0.24
+  $IndentY2 = $WholeRect.Y + $WholeRect.Height * 0.40
+  $IndentY3 = $WholeRect.Y + $WholeRect.Height * 0.56
+  $IndentY4 = $WholeRect.Y + $WholeRect.Height * 0.72
 
-  $BadgeFont = New-Object System.Drawing.Font 'Segoe UI', ([float]($S * 0.11)), ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-  $BadgeFormat = New-Object System.Drawing.StringFormat
-  $BadgeFormat.Alignment = [System.Drawing.StringAlignment]::Center
-  $BadgeFormat.LineAlignment = [System.Drawing.StringAlignment]::Center
-  $G.DrawString('JSON', $BadgeFont, $WhiteBrush, `
-    (New-Object System.Drawing.RectangleF ($BadgeX), ($BadgeY), ($BadgeW), ($BadgeH)), $BadgeFormat)
+  $InsetL = $WholeRect.X + $WholeRect.Width * 0.28
+  $InsetR1 = $WholeRect.X + $WholeRect.Width * 0.42
+  $InsetR2 = $WholeRect.X + $WholeRect.Width * 0.52
+  $InsetR3 = $WholeRect.X + $WholeRect.Width * 0.68
+  $InsetR4 = $WholeRect.X + $WholeRect.Width * 0.48
 
-  $Bg.Dispose(); $BlueBrush.Dispose(); $VioletBrush.Dispose(); $WhiteBrush.Dispose()
-  if ($DarkBrush) { $DarkBrush.Dispose() }
+  $G.DrawLine($InnerLinePen, (New-Object System.Drawing.PointF ($InsetL), ($IndentY1)), (New-Object System.Drawing.PointF ($InsetR1), ($IndentY1)))
+  $G.DrawLine($InnerLinePen, (New-Object System.Drawing.PointF ($InsetL + $S * 0.04), ($IndentY2)), (New-Object System.Drawing.PointF ($InsetR2), ($IndentY2)))
+  $G.DrawLine($InnerLinePen, (New-Object System.Drawing.PointF ($InsetL + $S * 0.04), ($IndentY3)), (New-Object System.Drawing.PointF ($InsetR3), ($IndentY3)))
+  $G.DrawLine($InnerLinePen, (New-Object System.Drawing.PointF ($InsetL), ($IndentY4)), (New-Object System.Drawing.PointF ($InsetR4), ($IndentY4)))
+
+  $Bg.Dispose(); $TealBrush.Dispose(); $AccentBrush.Dispose()
   if ($Shadow) { $Shadow.Dispose() }
-  if ($OutlinePen) { $OutlinePen.Dispose() }
+  if ($IndentBrush) { $IndentBrush.Dispose() }
+  if ($InnerLinePen) { $InnerLinePen.Dispose() }
+  if ($MonoBold) { $MonoBold.Dispose() }
+  if ($AccentFont) { $AccentFont.Dispose() }
   if ($Format) { $Format.Dispose() }
-  if ($Font) { $Font.Dispose() }
-  if ($InnerPen) { $InnerPen.Dispose() }
-  if ($LinePen) { $LinePen.Dispose() }
-  if ($BadgeFont) { $BadgeFont.Dispose() }
-  if ($BadgeFormat) { $BadgeFormat.Dispose() }
+  if ($BraceFormat) { $BraceFormat.Dispose() }
+  if ($MidFormat) { $MidFormat.Dispose() }
 }
 
 function New-Icon([int]$Size, [string]$Path) {

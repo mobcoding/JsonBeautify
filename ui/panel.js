@@ -1,14 +1,21 @@
+const INSTANCE_ID = Math.random().toString(36).substring(2);
+
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg.type === "ANOTHER_INSTANCE_OPENED" && msg.instanceId !== INSTANCE_ID) {
+    window.close();
+  }
+});
+
 const elements = {
   openOptions: document.querySelector("#openOptions"),
-  openSidePanel: document.querySelector("#openSidePanel"),
-
-  tabs: Array.from(document.querySelectorAll(".tab")),
-  tabPanels: Array.from(document.querySelectorAll(".tab-panel")),
+  workspaceTabs: Array.from(document.querySelectorAll(".mode-tab")),
+  workspaces: Array.from(document.querySelectorAll(".workspace")),
+  actionGroups: Array.from(document.querySelectorAll(".mode-actions")),
+  formatOptions: document.querySelector("[data-format-options]"),
 
   indentSize: document.querySelector("#indentSize"),
   sortKeysToggle: document.querySelector("#sortKeysToggle"),
   sampleData: document.querySelector("#sampleData"),
-  importFromPage: document.querySelector("#importFromPage"),
   clearInput: document.querySelector("#clearInput"),
   inputText: document.querySelector("#inputText"),
   formatNow: document.querySelector("#formatNow"),
@@ -16,6 +23,7 @@ const elements = {
   minifyNow: document.querySelector("#minifyNow"),
 
   outputWrap: document.querySelector("#outputWrap"),
+  outputArea: document.querySelector("#outputArea"),
   outputText: document.querySelector("#outputText"),
   statsBlock: document.querySelector("#statsBlock"),
   statLines: document.querySelector("#statLines"),
@@ -26,22 +34,11 @@ const elements = {
   downloadOutput: document.querySelector("#downloadOutput"),
   swapToInput: document.querySelector("#swapToInput"),
 
-  expandLevel: document.querySelector("#expandLevel"),
-  refreshTree: document.querySelector("#refreshTree"),
-  expandAllTree: document.querySelector("#expandAllTree"),
-  collapseAllTree: document.querySelector("#collapseAllTree"),
-  treeContainer: document.querySelector("#treeContainer"),
-
   escapeInput: document.querySelector("#escapeInput"),
   escapeNow: document.querySelector("#escapeNow"),
   unescapeNow: document.querySelector("#unescapeNow"),
   escapeOutput: document.querySelector("#escapeOutput"),
   copyEscapeOutput: document.querySelector("#copyEscapeOutput"),
-
-  sortInput: document.querySelector("#sortInput"),
-  sortNow: document.querySelector("#sortNow"),
-  sortOutput: document.querySelector("#sortOutput"),
-  copySortOutput: document.querySelector("#copySortOutput"),
 
   compareA: document.querySelector("#compareA"),
   compareB: document.querySelector("#compareB"),
@@ -55,14 +52,14 @@ const elements = {
 
 let currentSettings = null;
 let currentFormatted = "";
-let currentTree = null;
-let currentValid = true;
+let lastAutoFilledCompare = "";
+let lastAutoFilledEscape = "";
 
 const SAMPLE_JSON = `{
   "name": "JSON Beautify",
   "version": "1.0.0",
   "enabled": true,
-  "features": ["format", "minify", "validate", "tree-view"],
+  "features": ["format", "minify", "escape", "compare"],
   "stats": {
     "lines": 128,
     "bytes": 4096
@@ -73,65 +70,95 @@ const SAMPLE_JSON = `{
 document.addEventListener("DOMContentLoaded", init);
 
 elements.openOptions.addEventListener("click", () => chrome.runtime.openOptionsPage());
-elements.openSidePanel.addEventListener("click", async (e) => {
-  e.preventDefault();
-  try {
-    if (chrome.sidePanel?.open) {
-      await chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-    }
-  } catch (error) {
-    showStatus("侧栏不可用", error.message, "bad");
-  }
-});
-
-elements.tabs.forEach((tab) => {
-  tab.addEventListener("click", () => switchTab(tab.dataset.view));
+elements.workspaceTabs.forEach((tab) => {
+  tab.addEventListener("click", () => switchWorkspace(tab.dataset.workspace));
 });
 
 elements.sampleData.addEventListener("click", () => {
   elements.inputText.value = SAMPLE_JSON;
   showStatus("已载入示例", "你可以点击“美化格式化”查看效果。", "good");
 });
-elements.importFromPage.addEventListener("click", importFromPage);
 elements.clearInput.addEventListener("click", () => {
   elements.inputText.value = "";
   hideOutput();
   showStatus("已清空输入", "粘贴或输入 JSON 后继续操作。", "");
 });
 
-elements.formatNow.addEventListener("click", formatCurrent);
-elements.validateNow.addEventListener("click", validateCurrent);
-elements.minifyNow.addEventListener("click", minifyCurrent);
-elements.copyOutput.addEventListener("click", () => copyText(currentFormatted, elements.outputText));
+elements.formatNow.addEventListener("click", () => runSubAction(elements.formatNow, formatCurrent));
+elements.validateNow.addEventListener("click", () => runSubAction(elements.validateNow, validateCurrent));
+elements.minifyNow.addEventListener("click", () => runSubAction(elements.minifyNow, minifyCurrent));
+elements.copyOutput.addEventListener("click", () => copyText(currentFormatted, elements.copyOutput, elements.outputText));
 elements.downloadOutput.addEventListener("click", downloadJson);
 elements.swapToInput.addEventListener("click", swapOutputToInput);
+elements.outputArea.addEventListener("click", toggleOutputFold);
 
-elements.refreshTree.addEventListener("click", refreshTreeFromInput);
-elements.expandAllTree.addEventListener("click", () => setTreeExpandAll(true));
-elements.collapseAllTree.addEventListener("click", () => setTreeExpandAll(false));
+elements.escapeNow.addEventListener("click", () => runSubAction(elements.escapeNow, () => runEscape(false)));
+elements.unescapeNow.addEventListener("click", () => runSubAction(elements.unescapeNow, () => runEscape(true)));
+elements.copyEscapeOutput.addEventListener("click", () => copyText(elements.escapeOutput.value || "", elements.copyEscapeOutput, elements.escapeOutput));
 
-elements.escapeNow.addEventListener("click", () => runEscape(false));
-elements.unescapeNow.addEventListener("click", () => runEscape(true));
-elements.copyEscapeOutput.addEventListener("click", () => copyText(elements.escapeOutput.textContent || "", elements.escapeOutput));
-
-elements.sortNow.addEventListener("click", runSortKeys);
-elements.copySortOutput.addEventListener("click", () => copyText(elements.sortOutput.textContent || "", elements.sortOutput));
-
-elements.compareNow.addEventListener("click", runCompare);
+elements.compareNow.addEventListener("click", () => runSubAction(elements.compareNow, runCompare));
 
 elements.inputText.addEventListener("input", () => {
-  currentValid = true;
-  if (elements.outputWrap.hidden) return;
+  if (currentFormatted) {
+    hideOutput();
+    showStatus("输入已变更", "上一份结果已隐藏，请重新格式化或压缩。", "");
+  }
 });
 
 async function init() {
+  chrome.runtime.sendMessage({ type: "ANOTHER_INSTANCE_OPENED", instanceId: INSTANCE_ID });
+
+  applyViewModeClass(await detectViewMode());
+
   try {
     currentSettings = await request({ type: "GET_SETTINGS" });
     applySettingsToUi(currentSettings);
-    showStatus("准备就绪", "粘贴 JSON 文本后点击“美化格式化”。", "good");
-    tryPrefillFromSelection();
+
+    showStatus("准备就绪", "粘贴 JSON 后即可格式化、压缩、转义或比较。", "good");
   } catch (error) {
     showStatus("无法读取设置", error.message, "bad");
+  }
+}
+
+function detectViewMode() {
+  return new Promise((resolve) => {
+    try {
+      if (window.location.protocol !== "chrome-extension:" && window.location.protocol !== "extension:") {
+        resolve("window");
+        return;
+      }
+      chrome.windows.getCurrent((win) => {
+        if (chrome.runtime.lastError) {
+          try {
+            chrome.runtime.sendMessage({ type: "PING_FOR_VIEW" }, (resp) => {
+              if (chrome.runtime.lastError) { resolve("tab"); return; }
+              resolve(resp?.mode || "tab");
+            });
+          } catch {
+            resolve("tab");
+          }
+          return;
+        }
+        const type = win?.type;
+        if (type === "popup" || type === "panel" || type === "detached_panel") {
+          const w = Math.max(window.innerWidth || 0, document.documentElement?.clientWidth || 0);
+          const h = Math.max(window.innerHeight || 0, document.documentElement?.clientHeight || 0);
+          if (w >= 1000 || h >= 760) { resolve("window"); return; }
+          resolve("popup");
+          return;
+        }
+        resolve("tab");
+      });
+    } catch {
+      resolve("tab");
+    }
+  });
+}
+
+function applyViewModeClass(mode) {
+  document.body.dataset.viewMode = mode || "popup";
+  if (mode === "tab" && document.title && !document.title.includes("（全屏")) {
+    document.title = document.title + "（全屏编辑）";
   }
 }
 
@@ -142,7 +169,6 @@ function applySettingsToUi(settings) {
     elements.indentSize.value = String(settings.indentSize);
   }
   elements.sortKeysToggle.checked = Boolean(settings.sortKeys);
-  elements.expandLevel.value = String(settings.expandLevel ?? 1);
 }
 
 function collectInlineSettings() {
@@ -150,49 +176,49 @@ function collectInlineSettings() {
   return {
     indentSize: indent === "tab" ? 4 : parseInt(indent, 10) || 2,
     useTabIndent: indent === "tab",
-    sortKeys: elements.sortKeysToggle.checked,
-    expandLevel: parseInt(elements.expandLevel.value, 10) || 1
+    sortKeys: elements.sortKeysToggle.checked
   };
 }
 
-function switchTab(view) {
-  elements.tabs.forEach((t) => {
-    const active = t.dataset.view === view;
-    t.classList.toggle("active", active);
-    t.setAttribute("aria-selected", active ? "true" : "false");
+function switchWorkspace(name) {
+  elements.workspaceTabs.forEach((tab) => {
+    const active = tab.dataset.workspace === name;
+    tab.classList.toggle("active", active);
+    tab.setAttribute("aria-selected", active ? "true" : "false");
   });
-  elements.tabPanels.forEach((p) => {
-    const show = p.dataset.view === view;
-    p.classList.toggle("active", show);
-    p.hidden = !show;
+  elements.workspaces.forEach((workspace) => {
+    workspace.hidden = workspace.dataset.workspace !== name;
+    workspace.classList.toggle("active", workspace.dataset.workspace === name);
   });
+  elements.actionGroups.forEach((group) => {
+    group.hidden = group.dataset.actions !== name;
+    group.classList.toggle("active", group.dataset.actions === name);
+  });
+  elements.formatOptions.hidden = name !== "format";
+  populateWorkspaceInput(name);
+}
 
-  if (view === "tree" && !currentTree) {
-    refreshTreeFromInput();
+function populateWorkspaceInput(name) {
+  const source = elements.inputText.value;
+  if (!source) return;
+
+  if (name === "compare" && (!elements.compareA.value || elements.compareA.value === lastAutoFilledCompare)) {
+    elements.compareA.value = source;
+    lastAutoFilledCompare = source;
+  }
+
+  if (name === "escape" && (!elements.escapeInput.value || elements.escapeInput.value === lastAutoFilledEscape)) {
+    elements.escapeInput.value = source;
+    lastAutoFilledEscape = source;
   }
 }
 
-async function tryPrefillFromSelection() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id) return;
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => (window.getSelection()?.toString() || "").trim()
-    });
-    const selection = results?.[0]?.result || "";
-    if (looksLikeJson(selection)) {
-      elements.inputText.value = selection;
-      showStatus("已自动带入选中内容", "检测到选中文本类似 JSON，已填入输入框。", "good");
-    }
-  } catch {
-    // 忽略，不影响主流程
-  }
-}
-
-function looksLikeJson(text) {
-  const t = String(text || "").trim();
-  return (t.startsWith("{") && t.endsWith("}")) || (t.startsWith("[") && t.endsWith("]"));
+function runSubAction(button, action) {
+  const group = button.closest(".mode-actions");
+  group?.querySelectorAll(".primary-action, .sub-button").forEach((item) => {
+    item.classList.toggle("active", item === button);
+  });
+  action();
 }
 
 async function formatCurrent() {
@@ -212,13 +238,11 @@ async function formatCurrent() {
     });
 
     if (!result.isValid) {
-      currentValid = false;
       showValidationError(result.error);
       return;
     }
 
     currentFormatted = result.formatted;
-    currentValid = true;
     renderOutput(result.formatted, result.stats, true);
     showStatus("格式化完成", "结果已输出，可复制或下载为 .json 文件。", "good");
   } catch (error) {
@@ -242,12 +266,10 @@ async function validateCurrent() {
     const result = await request({ type: "VALIDATE_JSON", payload: { text } });
 
     if (!result.isValid) {
-      currentValid = false;
       showValidationError(result.error);
       return;
     }
 
-    currentValid = true;
     const stats = result.stats || {};
     showStatus(
       "验证通过 ✓",
@@ -275,13 +297,11 @@ async function minifyCurrent() {
     const result = await request({ type: "MINIFY_JSON", payload: { text } });
 
     if (!result.isValid) {
-      currentValid = false;
       showValidationError(result.error);
       return;
     }
 
     currentFormatted = result.minified;
-    currentValid = true;
     renderOutput(result.minified, result.stats, false);
     showStatus("压缩完成", "结果为单行紧凑 JSON，适合 API 传输。", "good");
   } catch (error) {
@@ -292,12 +312,8 @@ async function minifyCurrent() {
 }
 
 function renderOutput(text, stats, pretty) {
-  elements.outputWrap.hidden = false;
-  elements.outputText.textContent = text;
-
-  if (pretty && currentSettings?.syntaxHighlight !== false) {
-    elements.outputText.innerHTML = highlightJson(text);
-  }
+  renderCodeOutput(text, pretty && currentSettings?.syntaxHighlight !== false);
+  elements.outputText.classList.remove("empty");
 
   if (stats) {
     elements.statsBlock.hidden = false;
@@ -311,47 +327,85 @@ function renderOutput(text, stats, pretty) {
 }
 
 function hideOutput() {
-  elements.outputWrap.hidden = true;
-  elements.outputText.textContent = "";
+  elements.outputText.textContent = "格式化结果会显示在这里";
+  elements.outputText.classList.add("empty");
+  elements.statsBlock.hidden = true;
   currentFormatted = "";
 }
 
+function renderCodeOutput(text, syntaxHighlight) {
+  const lines = String(text).split("\n");
+  const foldEnds = findFoldEnds(lines);
+  elements.outputText.innerHTML = lines.map((line, index) => {
+    const foldEnd = foldEnds.get(index);
+    const toggle = foldEnd === undefined
+      ? '<span class="fold-spacer" aria-hidden="true"></span>'
+      : `<button class="fold-toggle" type="button" data-fold-end="${foldEnd}" aria-label="折叠第 ${index + 1} 行内容" aria-expanded="true"></button>`;
+    const code = syntaxHighlight ? highlightJson(line) : escapeHtml(line);
+    const summary = foldEnd === undefined ? "" : '<span class="fold-summary" aria-hidden="true">...</span>';
+    return `<div class="code-line" data-line-index="${index}"><span class="line-number">${index + 1}</span>${toggle}<span class="line-code">${code || " "}</span>${summary}</div>`;
+  }).join("");
+}
+
+function findFoldEnds(lines) {
+  const stack = [];
+  const foldEnds = new Map();
+  let inString = false;
+  let escaped = false;
+
+  lines.forEach((line, lineIndex) => {
+    for (const char of line) {
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') inString = true;
+      else if (char === "{" || char === "[") stack.push({ char, lineIndex });
+      else if (char === "}" || char === "]") {
+        const open = stack.pop();
+        if (open && open.lineIndex < lineIndex) foldEnds.set(open.lineIndex, lineIndex);
+      }
+    }
+  });
+  return foldEnds;
+}
+
+function toggleOutputFold(event) {
+  const button = event.target.closest(".fold-toggle");
+  if (!button) return;
+  const start = parseInt(button.closest(".code-line")?.dataset.lineIndex, 10);
+  const end = parseInt(button.dataset.foldEnd, 10);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return;
+
+  const isCollapsed = button.getAttribute("aria-expanded") === "false";
+  button.setAttribute("aria-expanded", isCollapsed ? "true" : "false");
+  button.setAttribute("aria-label", `${isCollapsed ? "折叠" : "展开"}第 ${start + 1} 行内容`);
+  button.closest(".code-line")?.classList.toggle("is-collapsed", !isCollapsed);
+  for (let index = start + 1; index < end; index += 1) {
+    const line = elements.outputText.querySelector(`.code-line[data-line-index="${index}"]`);
+    if (!line) continue;
+    const owners = new Set((line.dataset.foldOwners || "").split(",").filter(Boolean));
+    if (isCollapsed) owners.delete(String(start));
+    else owners.add(String(start));
+    line.dataset.foldOwners = Array.from(owners).join(",");
+    line.classList.toggle("is-folded", owners.size > 0);
+  }
+}
+
 function showValidationError(error) {
-  elements.outputWrap.hidden = true;
+  hideOutput();
+  highlightTextareaRange(elements.inputText, error.position, "error");
   const loc = error.line && error.column ? `（第 ${error.line} 行，第 ${error.column} 列）` : "";
   const snippet = error.snippet
-    ? `\n\n附近内容：…${escapeHtml(error.snippet.before || "")}【${escapeHtml(error.snippet.at || "")}】${escapeHtml(error.snippet.after || "")}…`
+    ? `\n\n附近内容：…${error.snippet.before || ""}【${error.snippet.at || ""}】${error.snippet.after || ""}…`
     : "";
   showStatus("JSON 无效 ✗", `${error.message || "解析失败"}${loc}${snippet}`, "bad");
 }
 
-async function importFromPage() {
-  setBusy(true);
-  showStatus("读取页面", "正在读取当前页面内容...", "");
-
-  try {
-    const result = await request({ type: "GET_ACTIVE_TAB_JSON" });
-    const candidate = result.text || "";
-    if (!candidate) {
-      showStatus("无可读内容", "当前页面没有检测到可读文本。", "bad");
-      return;
-    }
-    if (!looksLikeJson(candidate) && !candidate.includes(":") && !candidate.includes('"')) {
-      elements.inputText.value = candidate;
-      showStatus("已读取页面文本", "页面内容不像 JSON，但已填入输入框。", "");
-      return;
-    }
-    elements.inputText.value = candidate;
-    showStatus("已载入页面内容", `来源：${truncate(result.url || "当前页", 60)}`, "good");
-  } catch (error) {
-    showStatus("读取失败", error.message, "bad");
-  } finally {
-    setBusy(false);
-  }
-}
-
 async function swapOutputToInput() {
-  const text = currentFormatted || elements.outputText.textContent || "";
+  const text = currentFormatted;
   if (!text) {
     showStatus("没有可移送内容", "请先得到格式化或压缩结果。", "bad");
     return;
@@ -362,7 +416,7 @@ async function swapOutputToInput() {
 }
 
 async function downloadJson() {
-  const text = currentFormatted || elements.outputText.textContent || "";
+  const text = currentFormatted;
   if (!text) {
     showStatus("没有内容可下载", "请先格式化或压缩。", "bad");
     return;
@@ -383,126 +437,10 @@ async function downloadJson() {
   }
 }
 
-async function refreshTreeFromInput() {
-  const text = elements.inputText.value.trim();
-  if (!text) {
-    elements.treeContainer.innerHTML = `<p class="tree-placeholder">编辑器输入框为空，先粘贴 JSON 再刷新。</p>`;
-    currentTree = null;
-    return;
-  }
-
-  setBusy(true);
-  showStatus("构建树状视图", "正在生成结构树...", "");
-
-  try {
-    const result = await request({
-      type: "JSON_TO_TREE",
-      payload: { text, settings: collectInlineSettings() }
-    });
-
-    if (!result.isValid) {
-      currentTree = null;
-      elements.treeContainer.innerHTML = `<div class="tree-error">${escapeHtml(result.error?.message || "解析失败")}</div>`;
-      showStatus("构建树失败", result.error?.message || "JSON 无效，无法生成树。", "bad");
-      return;
-    }
-
-    currentTree = result.tree;
-    elements.treeContainer.innerHTML = renderTreeHtml(result.tree);
-    bindTreeToggleEvents(elements.treeContainer);
-    showStatus("树状视图已生成", "点击节点左侧箭头可展开或折叠子节点。", "good");
-  } catch (error) {
-    showStatus("构建树失败", error.message, "bad");
-  } finally {
-    setBusy(false);
-  }
-}
-
-function setTreeExpandAll(expand) {
-  elements.treeContainer.querySelectorAll(".tree-node").forEach((node) => {
-    if (expand) {
-      node.classList.add("expanded");
-      node.classList.remove("collapsed");
-    } else {
-      const depth = parseInt(node.dataset.depth || "0", 10);
-      if (depth >= 1) {
-        node.classList.remove("expanded");
-        node.classList.add("collapsed");
-      } else {
-        node.classList.add("expanded");
-        node.classList.remove("collapsed");
-      }
-    }
-  });
-}
-
-function bindTreeToggleEvents(container) {
-  container.querySelectorAll(".tree-toggle").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const node = btn.closest(".tree-node");
-      if (!node) return;
-      const expanded = node.classList.toggle("expanded");
-      node.classList.toggle("collapsed", !expanded);
-    });
-  });
-  container.querySelectorAll(".tree-value").forEach((el) => {
-    el.addEventListener("click", () => copyText(el.textContent || "", el));
-    el.title = "点击复制该值";
-  });
-}
-
-function renderTreeHtml(node) {
-  const { key, type, depth } = node;
-  const prefixKey = renderKeyLabel(key, type, depth);
-  const valueHtml = renderValueInline(node);
-
-  if ((type === "object" || type === "array") && node.children?.length) {
-    const header = `<div class="tree-line" style="padding-left:${depth * 18 + 4}px;">
-      <button class="tree-toggle" aria-label="展开/折叠">▸</button>
-      <span class="tree-key">${prefixKey}</span>
-      <span class="tree-type-badge">${type === "array" ? `Array(${node.length})` : `Object{${node.keys?.length ?? 0}}`}</span>
-    </div>`;
-    const childrenHtml = node.children.map(renderTreeHtml).join("");
-    const collapsed = node.collapsed ? "collapsed" : "expanded";
-    return `<div class="tree-node ${collapsed}" data-depth="${depth}">${header}<div class="tree-children">${childrenHtml}</div></div>`;
-  }
-
-  return `<div class="tree-node expanded leaf" data-depth="${depth}">
-    <div class="tree-line" style="padding-left:${depth * 18 + 22}px;">
-      <span class="tree-key">${prefixKey}</span>
-      <span class="tree-value value-${type}">${escapeHtml(valueHtml)}</span>
-    </div>
-  </div>`;
-}
-
-function renderKeyLabel(key, type, depth) {
-  if (depth === 0) return `<em>${type}</em>`;
-  const isIndex = /^\d+$/.test(key);
-  return isIndex ? `<b class="arr-idx">[${key}]</b>` : `<b>"${escapeHtml(key)}"</b>:`;
-}
-
-function renderValueInline(node) {
-  switch (node.type) {
-    case "string":
-      return `"${node.value}"`;
-    case "number":
-    case "boolean":
-      return String(node.value);
-    case "null":
-      return "null";
-    case "array":
-      return `[... ${node.length} items]`;
-    case "object":
-      return `{... ${node.keys?.length ?? 0} keys}`;
-    default:
-      return String(node.value ?? "");
-  }
-}
-
 async function runEscape(unescape) {
   const input = elements.escapeInput.value;
   if (!input && !unescape) {
-    elements.escapeOutput.textContent = "";
+    elements.escapeOutput.value = "";
     showStatus("输入为空", "请先输入要转义的文本。", "bad");
     return;
   }
@@ -511,53 +449,26 @@ async function runEscape(unescape) {
       type: unescape ? "UNESCAPE_JSON" : "ESCAPE_JSON",
       payload: { text: input }
     });
-    elements.escapeOutput.textContent = unescape ? result.unescaped : result.escaped;
-    showStatus(unescape ? "反转义完成" : "转义完成", "结果已显示在下方，可点击“复制结果”。", "good");
+    elements.escapeOutput.value = unescape ? result.unescaped : result.escaped;
+    showStatus(unescape ? "反转义完成" : "转义完成", "结果已显示在右侧，可点击“复制结果”。", "good");
   } catch (error) {
-    elements.escapeOutput.textContent = "";
+    elements.escapeOutput.value = "";
     showStatus((unescape ? "反转义" : "转义") + "失败", error.message, "bad");
   }
 }
 
-async function runSortKeys() {
-  const text = elements.sortInput.value;
-  if (!text.trim()) {
-    elements.sortOutput.textContent = "";
-    showStatus("输入为空", "请先输入 JSON。", "bad");
-    return;
-  }
-  setBusy(true);
-  showStatus("正在排序", "按键名递归排序中...", "");
-  try {
-    const result = await request({
-      type: "SORT_KEYS",
-      payload: { text, settings: collectInlineSettings() }
-    });
-    if (!result.isValid) {
-      elements.sortOutput.textContent = "";
-      showStatus("排序失败", result.error?.message || "JSON 无效", "bad");
-      return;
-    }
-    elements.sortOutput.textContent = result.sorted;
-    elements.sortOutput.innerHTML = highlightJson(result.sorted);
-    showStatus("排序完成", "对象 key 已按字典序递归排序。", "good");
-  } catch (error) {
-    showStatus("排序失败", error.message, "bad");
-  } finally {
-    setBusy(false);
-  }
-}
-
 async function runCompare() {
-  const aText = elements.compareA.value.trim();
-  const bText = elements.compareB.value.trim();
-  if (!aText || !bText) {
-    elements.compareOutput.textContent = "";
+  const aText = elements.compareA.value;
+  const bText = elements.compareB.value;
+  if (!aText.trim() || !bText.trim()) {
+    elements.compareOutput.value = "";
     showStatus("请提供两份 JSON", "需要同时填写 JSON A 和 JSON B。", "bad");
     return;
   }
 
   setBusy(true);
+  clearTextareaHighlight(elements.compareA);
+  clearTextareaHighlight(elements.compareB);
   showStatus("比较中", "正在解析并比较两份 JSON...", "");
   try {
     const va = await request({ type: "VALIDATE_JSON", payload: { text: aText } });
@@ -565,22 +476,40 @@ async function runCompare() {
 
     if (!va.isValid || !vb.isValid) {
       const errs = [];
-      if (!va.isValid) errs.push(`JSON A: ${va.error?.message || "无效"}`);
-      if (!vb.isValid) errs.push(`JSON B: ${vb.error?.message || "无效"}`);
-      elements.compareOutput.textContent = "";
+      if (!va.isValid) {
+        highlightTextareaRange(elements.compareA, va.error?.position, "error");
+        errs.push(`JSON A: ${va.error?.message || "无效"}`);
+      }
+      if (!vb.isValid) {
+        highlightTextareaRange(elements.compareB, vb.error?.position, "error");
+        errs.push(`JSON B: ${vb.error?.message || "无效"}`);
+      }
+      elements.compareOutput.value = "";
       showStatus("有无效 JSON", errs.join("；"), "bad");
       return;
     }
 
-    const a = JSON.parse(aText);
-    const b = JSON.parse(bText);
+    // 使用后台已经验证过的解析结果，确保比较与格式化都支持同一套松弛 JSON 规则。
+    const a = va.parsed;
+    const b = vb.parsed;
     const report = compareTwo(a, b, "$");
-    elements.compareOutput.textContent = report.text;
-    const statusMood = report.equal ? "good" : "";
-    const statusTitle = report.equal ? "两份 JSON 相等 ✓" : `发现 ${report.diffs.length} 处差异`;
+    elements.compareOutput.value = "";
+
+    if (report.equal) {
+      elements.compareOutput.value = report.text;
+      clearTextareaHighlight(elements.compareA);
+      clearTextareaHighlight(elements.compareB);
+    } else {
+      const header = `发现 ${report.diffs.length} 处差异：\n\n`;
+      elements.compareOutput.value = header + report.text;
+      highlightFirstDifference(report.diffs[0], aText, bText);
+    }
+
+    const statusMood = report.equal ? "good" : "warn";
+    const statusTitle = report.equal ? "比较完成" : "发现差异";
     const statusDesc = report.equal
       ? "在忽略键顺序情况下结构与值完全一致。"
-      : "详情见下方输出；左侧字段路径来自根 $。";
+      : "发现差异，结果已显示在下方输出区。";
     showStatus(statusTitle, statusDesc, statusMood);
   } catch (error) {
     showStatus("比较失败", error.message, "bad");
@@ -598,20 +527,18 @@ function compareTwo(a, b, path) {
     const tx = x === null ? "null" : Array.isArray(x) ? "array" : typeof x;
     const ty = y === null ? "null" : Array.isArray(y) ? "array" : typeof y;
     if (tx !== ty) {
-      diffs.push({ path: p, message: `类型不同：A 是 ${tx}，B 是 ${ty}` });
-      lines.push(`≠ ${p}: 类型不同 [${tx}] vs [${ty}]`);
+      addDiff(p, `类型不同：A 是 ${tx}，B 是 ${ty}`, `类型不同 [${tx}] vs [${ty}]`);
       return;
     }
     if (tx === "array") {
       if (x.length !== y.length) {
-        diffs.push({ path: p, message: `数组长度不同：A=${x.length}, B=${y.length}` });
-        lines.push(`≠ ${p}: 数组长度 ${x.length} vs ${y.length}`);
+        addDiff(p, `数组长度不同：A=${x.length}, B=${y.length}`, `数组长度 ${x.length} vs ${y.length}`);
       }
       const n = Math.min(x.length, y.length);
       for (let i = 0; i < n; i += 1) walk(x[i], y[i], `${p}[${i}]`);
       for (let i = n; i < Math.max(x.length, y.length); i += 1) {
         const side = i < x.length ? "A" : "B";
-        lines.push(`+ ${p}[${i}]: 仅存在于 ${side}`);
+        addDiff(`${p}[${i}]`, `仅存在于 ${side}`, `仅存在于 ${side}`);
       }
       return;
     }
@@ -624,16 +551,21 @@ function compareTwo(a, b, path) {
         const inB = Object.prototype.hasOwnProperty.call(y, k);
         const sub = `${p}.${k}`;
         if (inA && !inB) {
-          lines.push(`- ${sub}: 仅存在于 A`);
+          addDiff(sub, "仅存在于 A", "仅存在于 A");
         } else if (!inA && inB) {
-          lines.push(`+ ${sub}: 仅存在于 B`);
+          addDiff(sub, "仅存在于 B", "仅存在于 B");
         } else {
           walk(x[k], y[k], sub);
         }
       }
       return;
     }
-    lines.push(`≠ ${p}: ${JSON.stringify(x)} vs ${JSON.stringify(y)}`);
+    addDiff(p, "值不同", `${JSON.stringify(x)} vs ${JSON.stringify(y)}`);
+  }
+
+  function addDiff(pathValue, message, detail) {
+    diffs.push({ path: pathValue, message });
+    lines.push(`≠ ${pathValue}: ${detail}`);
   }
 
   walk(a, b, path);
@@ -642,14 +574,72 @@ function compareTwo(a, b, path) {
     return {
       equal: true,
       diffs: [],
-      text: "✓ 两份 JSON 相等（键顺序不影响相等判断）。"
+      text: "✓ 两份 JSON 完全相等（忽略键名顺序）。"
     };
   }
 
   return { equal: false, diffs, text: lines.join("\n") };
 }
 
-async function copyText(text, statusAnchor) {
+function highlightFirstDifference(diff, aText, bText) {
+  const aRange = findJsonPathRange(aText, diff.path);
+  const bRange = findJsonPathRange(bText, diff.path);
+  highlightTextareaRange(elements.compareA, aRange, "difference");
+  highlightTextareaRange(elements.compareB, bRange, "difference", false);
+}
+
+function highlightTextareaRange(textarea, rangeOrPosition, mood, focus = true) {
+  clearTextareaHighlight(textarea);
+  const length = textarea.value.length;
+  let start = typeof rangeOrPosition === "number" ? rangeOrPosition : rangeOrPosition?.start;
+  let end = typeof rangeOrPosition === "number" ? rangeOrPosition + 1 : rangeOrPosition?.end;
+  if (!Number.isFinite(start)) return;
+  start = Math.max(0, Math.min(start, length));
+  end = Math.min(length, Math.max(start + 1, Math.min(Number.isFinite(end) ? end : start + 1, length)));
+  textarea.classList.add(mood === "error" ? "has-error" : "has-difference");
+  textarea.setSelectionRange(start, end);
+  if (focus) textarea.focus();
+}
+
+function clearTextareaHighlight(textarea) {
+  textarea.classList.remove("has-error", "has-difference");
+}
+
+function findJsonPathRange(text, path) {
+  const parts = parseJsonPath(path);
+  if (!parts.length) return { start: 0, end: Math.min(1, text.length) };
+  let cursor = 0;
+  let matched = null;
+  for (const part of parts) {
+    const keyPattern = typeof part === "number"
+      ? null
+      : new RegExp(`(?:"${escapeRegExp(part)}"|${escapeRegExp(part)})\\s*:`, "g");
+    if (keyPattern) {
+      keyPattern.lastIndex = cursor;
+      const match = keyPattern.exec(text);
+      if (!match) return matched;
+      matched = { start: match.index, end: match.index + match[0].length };
+      cursor = match.index + match[0].length;
+    }
+  }
+  return matched;
+}
+
+function parseJsonPath(path) {
+  const parts = [];
+  const matcher = /(?:\.([^.[\]]+)|\[(\d+)\])/g;
+  let match;
+  while ((match = matcher.exec(path))) {
+    parts.push(match[1] ?? parseInt(match[2], 10));
+  }
+  return parts;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+async function copyText(text, button, statusAnchor) {
   if (!text) {
     showStatus("无可复制内容", "请先生成结果再复制。", "bad");
     return;
@@ -657,10 +647,25 @@ async function copyText(text, statusAnchor) {
   try {
     await navigator.clipboard.writeText(text);
     showStatus("已复制", "内容已复制到剪贴板。", "good");
+    flashCopyButton(button, "已复制");
     if (statusAnchor) pulseCopyOk(statusAnchor);
   } catch (error) {
     showStatus("复制失败", error.message, "bad");
+    flashCopyButton(button, "复制失败", true);
   }
+}
+
+function flashCopyButton(button, text, bad = false) {
+  if (!button) return;
+  const original = button.textContent;
+  button.textContent = text;
+  button.disabled = true;
+  if (bad) button.classList.add("copy-failed");
+  setTimeout(() => {
+    button.textContent = original;
+    button.disabled = false;
+    button.classList.remove("copy-failed");
+  }, 1200);
 }
 
 function pulseCopyOk(el) {
@@ -671,16 +676,13 @@ function pulseCopyOk(el) {
 function showStatus(title, text, mood) {
   elements.statusTitle.textContent = title;
   elements.statusText.textContent = text;
-  elements.statusDot.classList.toggle("good", mood === "good");
-  elements.statusDot.classList.toggle("bad", mood === "bad");
+  elements.statusDot.className = `dot ${mood || ""}`.trim();
 }
 
 function setBusy(isBusy) {
   elements.formatNow.disabled = isBusy;
   elements.validateNow.disabled = isBusy;
   elements.minifyNow.disabled = isBusy;
-  elements.importFromPage.disabled = isBusy;
-  elements.sortNow.disabled = isBusy;
   elements.compareNow.disabled = isBusy;
   elements.escapeNow.disabled = isBusy;
   elements.unescapeNow.disabled = isBusy;
@@ -728,10 +730,4 @@ function formatBytes(n) {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(2)} MB`;
-}
-
-function truncate(value, max) {
-  const t = String(value || "");
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
 }

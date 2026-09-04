@@ -1,7 +1,6 @@
 const form = document.querySelector("#settingsForm");
 const fields = {
   indentMode: document.querySelector("#indentMode"),
-  expandLevel: document.querySelector("#expandLevel"),
   sortKeys: document.querySelector("#sortKeys"),
   syntaxHighlight: document.querySelector("#syntaxHighlight"),
   autoFormatOnView: document.querySelector("#autoFormatOnView")
@@ -54,11 +53,8 @@ async function restoreDefaults() {
       indentSize: 2,
       useTabIndent: false,
       sortKeys: false,
-      quoteKeys: true,
       autoFormatOnView: true,
-      syntaxHighlight: true,
-      expandLevel: 1,
-      maxDepth: 100
+      syntaxHighlight: true
     };
     await request({ type: "SAVE_SETTINGS", settings: defaults });
     applySettingsToForm(defaults);
@@ -106,7 +102,6 @@ function applySettingsToForm(settings) {
     mode = "space-2";
   }
   fields.indentMode.value = mode;
-  fields.expandLevel.value = String(parseInt(settings.expandLevel, 10) || 1);
   fields.sortKeys.checked = Boolean(settings.sortKeys);
   fields.syntaxHighlight.checked = Boolean(settings.syntaxHighlight ?? true);
   fields.autoFormatOnView.checked = Boolean(settings.autoFormatOnView ?? true);
@@ -133,8 +128,7 @@ function readFormPayload() {
     useTabIndent,
     sortKeys: fields.sortKeys.checked,
     syntaxHighlight: fields.syntaxHighlight.checked,
-    autoFormatOnView: fields.autoFormatOnView.checked,
-    expandLevel: parseInt(fields.expandLevel.value, 10) || 1
+    autoFormatOnView: fields.autoFormatOnView.checked
   };
 }
 

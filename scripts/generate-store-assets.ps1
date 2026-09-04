@@ -53,8 +53,8 @@ function New-Screenshot($Path, [string]$Title, [string]$Subtitle, [string]$JsonT
   $G = $Pair.Graphics
 
   Draw-GradientBg $G $W $H `
-    ([System.Drawing.Color]::FromArgb(255, 7, 18, 43)) `
-    ([System.Drawing.Color]::FromArgb(255, 23, 37, 84)) 45
+    ([System.Drawing.Color]::FromArgb(255, 241, 245, 244)) `
+    ([System.Drawing.Color]::FromArgb(255, 224, 240, 235)) 45
 
   $ChromeY = 40
   $ChromeH = 52
@@ -65,41 +65,41 @@ function New-Screenshot($Path, [string]$Title, [string]$Subtitle, [string]$JsonT
 
   $ChromeBar = New-Object System.Drawing.Drawing2D.LinearGradientBrush `
     (New-Object System.Drawing.Rectangle $WindowX, $WindowY, $WindowW, $ChromeH), `
-    ([System.Drawing.Color]::FromArgb(255, 30, 41, 59)), `
-    ([System.Drawing.Color]::FromArgb(255, 15, 23, 42)), 90
+    ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)), `
+    ([System.Drawing.Color]::FromArgb(255, 248, 250, 249)), 90
   $G.FillRectangle($ChromeBar, $WindowX, $WindowY, $WindowW, $ChromeH)
   $ChromeBar.Dispose()
 
   $Dots = @(
-    @{ X = $WindowX + 22; C = [System.Drawing.Color]::FromArgb(255, 239, 68, 68) },
-    @{ X = $WindowX + 44; C = [System.Drawing.Color]::FromArgb(255, 250, 204, 21) },
-    @{ X = $WindowX + 66; C = [System.Drawing.Color]::FromArgb(255, 34, 197, 94) }
+    @{ X = $WindowX + 22; C = [System.Drawing.Color]::FromArgb(255, 188, 205, 202) },
+    @{ X = $WindowX + 44; C = [System.Drawing.Color]::FromArgb(255, 154, 191, 182) },
+    @{ X = $WindowX + 66; C = [System.Drawing.Color]::FromArgb(255, 8, 123, 104) }
   )
   foreach ($D in $Dots) {
     $G.FillEllipse((New-Object System.Drawing.SolidBrush $D.C), $D.X, ($WindowY + 18), 16, 16)
   }
 
   $TitleFont = New-Object System.Drawing.Font 'Segoe UI', 18, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-  $TitleBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 226, 232, 240))
+  $TitleBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 37, 48, 51))
   $G.DrawString($Title, $TitleFont, $TitleBrush, ($WindowX + 100), ($WindowY + 14))
 
   $ContentY = $WindowY + $ChromeH
   $ContentH = $WindowH - $ChromeH
-  $ContentBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 15, 23, 42))
+  $ContentBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 241, 245, 244))
   $G.FillRectangle($ContentBg, $WindowX, $ContentY, $WindowW, $ContentH)
 
   $HeaderH = 70
   $HeaderBg = New-Object System.Drawing.Drawing2D.LinearGradientBrush `
     (New-Object System.Drawing.Rectangle $WindowX, $ContentY, $WindowW, $HeaderH), `
-    ([System.Drawing.Color]::FromArgb(255, 37, 99, 235)), `
-    ([System.Drawing.Color]::FromArgb(255, 124, 58, 237)), 0
+    ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)), `
+    ([System.Drawing.Color]::FromArgb(255, 248, 250, 249)), 0
   $G.FillRectangle($HeaderBg, $WindowX, $ContentY, $WindowW, $HeaderH)
 
   $BannerTitleFont = New-Object System.Drawing.Font 'Segoe UI', 24, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
   $BannerSubFont = New-Object System.Drawing.Font 'Segoe UI', 13, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
-  $WhiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
-  $MutedBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(230, 255, 255, 255))
-  $G.DrawString('JSON Beautify', $BannerTitleFont, $WhiteBrush, ($WindowX + 26), ($ContentY + 12))
+  $DarkBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 37, 48, 51))
+  $MutedBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 113, 128, 131))
+  $G.DrawString('JSON Beautify', $BannerTitleFont, $DarkBrush, ($WindowX + 26), ($ContentY + 12))
   $G.DrawString($Subtitle, $BannerSubFont, $MutedBrush, ($WindowX + 26), ($ContentY + 44))
 
   $CodeY = $ContentY + $HeaderH + 22
@@ -107,16 +107,16 @@ function New-Screenshot($Path, [string]$Title, [string]$Subtitle, [string]$JsonT
   $CodeW = $WindowW - 52
   $CodeH = $ContentH - $HeaderH - 44
 
-  $CodeBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 2, 6, 23))
+  $CodeBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 251, 252, 252))
   Fill-Round $G $CodeBg $CodeX $CodeY $CodeW $CodeH 14
 
-  $CodeFont = New-Object System.Drawing.Font 'Consolas', 15, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
-  $KeyBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 244, 114, 182))
-  $StrBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 253, 230, 138))
-  $NumBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 147, 197, 253))
-  $BoolBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 134, 239, 172))
-  $NullBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 252, 165, 165))
-  $PuncBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 203, 213, 225))
+  $CodeFont = New-Object System.Drawing.Font 'Consolas', 15, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
+  $KeyBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 163, 60, 116))
+  $StrBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 154, 98, 16))
+  $NumBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 23, 110, 174))
+  $BoolBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 29, 123, 92))
+  $NullBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 174, 74, 74))
+  $PuncBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 38, 53, 56))
 
   $Lines = $JsonText -split "`n"
   $LineY = $CodeY + 22
@@ -124,7 +124,7 @@ function New-Screenshot($Path, [string]$Title, [string]$Subtitle, [string]$JsonT
   $LineNo = 1
   foreach ($RawLine in $Lines) {
     $Line = $RawLine -replace "`r$", ''
-    $G.DrawString($LineNo.ToString('00'), $CodeFont, (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 71, 85, 105))), ($CodeX + 16), $LineY)
+    $G.DrawString($LineNo.ToString('00'), $CodeFont, (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 141, 155, 156))), ($CodeX + 16), $LineY)
 
     $LineX = $CodeX + 66
     $chars = $Line.ToCharArray()
@@ -199,7 +199,8 @@ $Json1 = @'
     "format",
     "minify",
     "validate",
-    "tree-view"
+    "line-numbers",
+    "folding"
   ],
   "enabled": true,
   "stats": {
@@ -260,8 +261,8 @@ $Json3 = @'
 New-Screenshot (Join-Path $StoreDir 'screenshot-1-editor-1280x800.png') `
   'panel.html - Editor' 'Format, minify, validate, inspect stats, copy and export JSON' $Json1 'editor'
 
-New-Screenshot (Join-Path $StoreDir 'screenshot-2-tree-1280x800.png') `
-  'panel.html - Tree View' 'Collapsible/expandable nodes, click to copy, configurable depth' $Json2 'tree'
+New-Screenshot (Join-Path $StoreDir 'screenshot-2-compare-1280x800.png') `
+  'panel.html - Compare' 'Compare two JSON documents and inspect the first difference' $Json2 'compare'
 
 New-Screenshot (Join-Path $StoreDir 'screenshot-3-auto-1280x800.png') `
   'content.js - Auto Format' 'Auto-formats raw JSON pages: highlight, toggle raw/pretty, download' $Json3 'raw'
@@ -269,24 +270,24 @@ New-Screenshot (Join-Path $StoreDir 'screenshot-3-auto-1280x800.png') `
 $LargePair = New-Bitmap 1400 560
 $LG = $LargePair.Graphics
 Draw-GradientBg $LG 1400 560 `
-  ([System.Drawing.Color]::FromArgb(255, 37, 99, 235)) `
-  ([System.Drawing.Color]::FromArgb(255, 124, 58, 237)) 135
+  ([System.Drawing.Color]::FromArgb(255, 241, 245, 244)) `
+  ([System.Drawing.Color]::FromArgb(255, 216, 236, 229)) 135
 
 $TitleFont = New-Object System.Drawing.Font 'Segoe UI', 64, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
 $SubFont = New-Object System.Drawing.Font 'Segoe UI', 24, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
-$WhiteBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
-$SubBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(235, 255, 255, 255))
-$LG.DrawString('JSON Beautify', $TitleFont, $WhiteBrush, 80, 130)
-$LG.DrawString('JSON Formatter, Beautifier, Validator & Tree Viewer', $SubFont, $SubBrush, 82, 220)
-$LG.DrawString('Edge addon. All processing is local; zero data uploads.', $SubFont, $SubBrush, 82, 264)
+$PromoTitleBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 37, 48, 51))
+$SubBrush = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 81, 103, 104))
+$LG.DrawString('JSON Beautify', $TitleFont, $PromoTitleBrush, 80, 130)
+$LG.DrawString('Format · Minify · Compare · Escape', $SubFont, $SubBrush, 82, 220)
+$LG.DrawString('Edge extension · Local processing · Zero data uploads', $SubFont, $SubBrush, 82, 264)
 
 $SampleBoxX = 820
 $SampleBoxY = 100
 $SampleBoxW = 520
 $SampleBoxH = 380
-$SBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(220, 2, 6, 23))
+$SBg = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 255, 255, 255))
 Fill-Round $LG $SBg $SampleBoxX $SampleBoxY $SampleBoxW $SampleBoxH 20
-$SCodeFont = New-Object System.Drawing.Font 'Consolas', 20, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
+$SCodeFont = New-Object System.Drawing.Font 'Consolas', 20, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
 $Sample = '{ "name": "JSON Beautify", "ok": true, "tags": ["format", "minify"] }'
 $Lines = @(
   '{',
@@ -300,7 +301,7 @@ $Lines = @(
 )
 $sy = $SampleBoxY + 44
 foreach ($line in $Lines) {
-  $LG.DrawString($line, $SCodeFont, $WhiteBrush, ($SampleBoxX + 32), $sy)
+  $LG.DrawString($line, $SCodeFont, $SubBrush, ($SampleBoxX + 32), $sy)
   $sy += 40
 }
 
@@ -309,18 +310,18 @@ Save-Bitmap $LargePair (Join-Path $StoreDir 'large-promo-1400x560.png')
 $SmallPair = New-Bitmap 440 280
 $SG = $SmallPair.Graphics
 Draw-GradientBg $SG 440 280 `
-  ([System.Drawing.Color]::FromArgb(255, 15, 23, 42)) `
-  ([System.Drawing.Color]::FromArgb(255, 30, 64, 175)) 135
+  ([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) `
+  ([System.Drawing.Color]::FromArgb(255, 224, 240, 235)) 135
 
 $STitleFont = New-Object System.Drawing.Font 'Segoe UI', 34, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
 $SSubFont = New-Object System.Drawing.Font 'Segoe UI', 13, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
-$SG.DrawString('JSON Beautify', $STitleFont, $WhiteBrush, 24, 86)
+$SG.DrawString('JSON Beautify', $STitleFont, $PromoTitleBrush, 24, 86)
 $SG.DrawString('Format, Beautify, Minify & Validate JSON', $SSubFont, $SubBrush, 26, 138)
-$SG.DrawString('Tree view + auto-detect raw JSON pages', $SSubFont, $SubBrush, 26, 160)
+$SG.DrawString('Compare + folding + auto-format JSON pages', $SSubFont, $SubBrush, 26, 160)
 
 Save-Bitmap $SmallPair (Join-Path $StoreDir 'small-promo-440x280.png')
 
-$TitleFont.Dispose(); $SubFont.Dispose(); $WhiteBrush.Dispose(); $SubBrush.Dispose()
+$TitleFont.Dispose(); $SubFont.Dispose(); $PromoTitleBrush.Dispose(); $SubBrush.Dispose()
 
 Get-ChildItem -LiteralPath $StoreDir -File |
   Where-Object { $_.Extension -eq '.png' } |
